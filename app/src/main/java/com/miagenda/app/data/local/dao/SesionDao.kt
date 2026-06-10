@@ -24,6 +24,9 @@ interface SesionDao {
     @Query("SELECT * FROM sesiones WHERE id = :id")
     suspend fun getSesionById(id: Long): SesionEntity?
 
+    @Query("SELECT EXISTS(SELECT 1 FROM sesiones WHERE fecha = :fecha AND horaInicio = :horaInicio)")
+    suspend fun existsByFechaAndHoraInicio(fecha: Long, horaInicio: String): Boolean
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertSesion(sesion: SesionEntity): Long
 

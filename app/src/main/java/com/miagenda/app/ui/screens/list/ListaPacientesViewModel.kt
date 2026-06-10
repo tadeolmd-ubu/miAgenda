@@ -5,6 +5,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.miagenda.app.AgendaApp
 import com.miagenda.app.data.local.entity.PacienteEntity
+import com.miagenda.app.data.local.entity.SesionEntity
 import com.miagenda.app.domain.mapper.toDomain
 import com.miagenda.app.domain.mapper.toEntity
 import com.miagenda.app.domain.model.Paciente
@@ -25,6 +26,17 @@ data class ListaPacientesUiState(
     val isLoading: Boolean = true
 )
 
+data class CrearSesionDialogState(
+    val show: Boolean = false,
+    val fecha: LocalDate = LocalDate.now(),
+    val selectedPacienteId: Long? = null,
+    val horaInicio: String = "",
+    val horaFin: String = "",
+    val motivo: String = "",
+    val error: String? = null,
+    val isSaving: Boolean = false
+)
+
 class ListaPacientesViewModel(application: Application) : AndroidViewModel(application) {
 
     private val pacienteRepo = (application as AgendaApp).container.pacienteRepository
@@ -34,6 +46,9 @@ class ListaPacientesViewModel(application: Application) : AndroidViewModel(appli
     val uiState: StateFlow<ListaPacientesUiState> = _uiState.asStateFlow()
 
     private val _selectedDate = MutableStateFlow(LocalDate.now())
+
+    private val _dialogState = MutableStateFlow(CrearSesionDialogState())
+    val dialogState: StateFlow<CrearSesionDialogState> = _dialogState.asStateFlow()
 
     init {
         observeSesiones()
@@ -77,6 +92,7 @@ class ListaPacientesViewModel(application: Application) : AndroidViewModel(appli
 
     fun onDateSelected(date: LocalDate) {
         _selectedDate.value = date
+        abrirCrearSesion(date)
     }
 
     fun onMonthChange(yearMonth: YearMonth) {
@@ -87,6 +103,76 @@ class ListaPacientesViewModel(application: Application) : AndroidViewModel(appli
             yearMonth.atEndOfMonth()
         }
         _selectedDate.value = newDate
+    }
+
+    fun abrirCrearSesion(date: LocalDate) {
+        _dialogState.value = CrearSesionDialogState(
+            show = true,
+            fecha = date
+        )
+    }
+
+    fun cerrarDialogo() {
+        _dialogState.value = CrearSesionDialogState(show = false)
+    }
+
+    fun onPacienteSeleccionado(pacienteId: Long) {
+        _dialogState.value = _dialogState.value.copy(
+            selectedPacienteId = pacienteId,
+            error = null
+        )
+    }
+
+    fun onHoraInicioChange(hora: String) {
+        _dialogState.value = _dialogState.value.copy(horaInicio = hora, error = null)
+    }
+
+    fun onHoraFinChange(hora: String) {
+        _dialogState.value = _dialogState.value.copy(horaFin = hora, error = null)
+    }
+
+    fun onMotivoChange(motivo: String) {
+        _dialogState.value = _dialogState.value.copy(motivo = motivo)
+    }
+
+    fun guardarSesion() {
+        val state = _dialogState.value
+
+        if (state.selectedPacienteId == null) {
+            _dialogState.value = state.copy(error = "Selecciona un paciente")
+            return
+        }
+        if (state.horaInicio.isBlank()) {
+            _dialogState.value = state.copy(error = "Ingresa la hora de inicio")
+            return
+        }
+
+        viewModelScope.launch {
+            _dialogState.value = state.copy(isSaving = true)
+
+            val fechaEpoch = state.fecha.toEpochDay()
+
+            val existe = sesionRepo.existeSesionEnHorario(fechaEpoch, state.horaInicio)
+            if (existe) {
+                _dialogState.value = _dialogState.value.copy(
+                    error = "Ya hay una sesión a esa hora",
+                    isSaving = false
+                )
+                return@launch
+            }
+
+            val entity = SesionEntity(
+                pacienteId = state.selectedPacienteId,
+                fecha = fechaEpoch,
+                horaInicio = state.horaInicio,
+                horaFin = state.horaFin,
+                motivo = state.motivo,
+                notas = ""
+            )
+
+            sesionRepo.guardarSesion(entity)
+            cerrarDialogo()
+        }
     }
 
     fun eliminarSesion(sesion: Sesion) {

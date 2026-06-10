@@ -22,6 +22,10 @@ class SesionRepository(
         return sesionDao.getSesionById(id)
     }
 
+    suspend fun existeSesionEnHorario(fecha: Long, horaInicio: String): Boolean {
+        return sesionDao.existsByFechaAndHoraInicio(fecha, horaInicio)
+    }
+
     suspend fun guardarSesion(sesion: SesionEntity): Long {
         return sesionDao.insertSesion(sesion)
     }
