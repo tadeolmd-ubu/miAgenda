@@ -20,6 +20,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.People
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
@@ -75,7 +76,7 @@ fun ListaPacientesScreen(
     val dialogState by viewModel.dialogState.collectAsState()
 
     if (dialogState.show) {
-        CrearSesionDialog(
+        SesionDialog(
             dialogState = dialogState,
             pacientes = uiState.pacientes,
             onPacienteSelected = viewModel::onPacienteSeleccionado,
@@ -152,6 +153,7 @@ fun ListaPacientesScreen(
                     selectedDate = uiState.selectedDate,
                     sesiones = uiState.sesionesDelDia,
                     onDeleteSesion = viewModel::eliminarSesion,
+                    onEditSesion = viewModel::abrirEditarSesion,
                     onAddSesion = viewModel::abrirCrearSesion
                 )
             }
@@ -161,8 +163,8 @@ fun ListaPacientesScreen(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun CrearSesionDialog(
-    dialogState: CrearSesionDialogState,
+private fun SesionDialog(
+    dialogState: SesionDialogState,
     pacientes: List<Paciente>,
     onPacienteSelected: (Long) -> Unit,
     onHoraInicioChange: (String) -> Unit,
@@ -179,7 +181,7 @@ private fun CrearSesionDialog(
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
-            Text(text = "Nueva sesión")
+            Text(text = if (dialogState.isEditing) "Editar sesión" else "Nueva sesión")
         },
         text = {
             Column(
@@ -308,6 +310,7 @@ private fun DayAppointmentsSection(
     selectedDate: LocalDate,
     sesiones: List<Sesion>,
     onDeleteSesion: (Sesion) -> Unit,
+    onEditSesion: (Sesion) -> Unit,
     onAddSesion: (LocalDate) -> Unit
 ) {
     Column(
@@ -348,12 +351,13 @@ private fun DayAppointmentsSection(
             )
         } else {
             LazyColumn(
-                verticalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
                 contentPadding = PaddingValues(bottom = 80.dp)
             ) {
                 items(sesiones, key = { it.id }) { sesion ->
-                    SesionCard(
+                    SesionRow(
                         sesion = sesion,
+                        onEdit = { onEditSesion(sesion) },
                         onDelete = { onDeleteSesion(sesion) }
                     )
                 }
@@ -363,8 +367,9 @@ private fun DayAppointmentsSection(
 }
 
 @Composable
-private fun SesionCard(
+private fun SesionRow(
     sesion: Sesion,
+    onEdit: () -> Unit,
     onDelete: () -> Unit
 ) {
     Card(
@@ -374,57 +379,69 @@ private fun SesionCard(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(12.dp),
+                .padding(horizontal = 12.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Box(
-                modifier = Modifier
-                    .size(48.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(
-                        text = sesion.horaInicio,
-                        style = MaterialTheme.typography.labelLarge,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                    if (sesion.horaFin.isNotBlank()) {
-                        Text(
-                            text = sesion.horaFin,
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-            }
+            Text(
+                text = sesion.horaInicio,
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.width(52.dp)
+            )
 
-            Spacer(modifier = Modifier.width(12.dp))
-
-            Column(modifier = Modifier.weight(1f)) {
+            if (sesion.horaFin.isNotBlank()) {
                 Text(
-                    text = sesion.nombrePaciente,
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.SemiBold,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    text = "-${sesion.horaFin}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.width(56.dp)
                 )
-                if (sesion.motivo.isNotBlank()) {
-                    Text(
-                        text = sesion.motivo,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
+            } else {
+                Spacer(modifier = Modifier.width(56.dp))
             }
 
-            IconButton(onClick = onDelete) {
+            HorizontalDivider(
+                modifier = Modifier
+                    .height(24.dp)
+                    .width(1.dp)
+                    .padding(end = 8.dp),
+                color = MaterialTheme.colorScheme.outlineVariant
+            )
+
+            Spacer(modifier = Modifier.width(8.dp))
+
+            Text(
+                text = sesion.nombrePaciente,
+                style = MaterialTheme.typography.bodyLarge,
+                modifier = Modifier.weight(1f),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+
+            IconButton(
+                onClick = onEdit,
+                modifier = Modifier.size(32.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Edit,
+                    contentDescription = "Editar sesión",
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(18.dp)
+                )
+            }
+
+            Spacer(modifier = Modifier.width(4.dp))
+
+            IconButton(
+                onClick = onDelete,
+                modifier = Modifier.size(32.dp)
+            ) {
                 Icon(
                     imageVector = Icons.Default.Delete,
                     contentDescription = "Eliminar sesión",
-                    tint = MaterialTheme.colorScheme.error
+                    tint = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.size(18.dp)
                 )
             }
         }

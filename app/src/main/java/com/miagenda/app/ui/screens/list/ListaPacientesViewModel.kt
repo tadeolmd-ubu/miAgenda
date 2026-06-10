@@ -26,8 +26,9 @@ data class ListaPacientesUiState(
     val isLoading: Boolean = true
 )
 
-data class CrearSesionDialogState(
+data class SesionDialogState(
     val show: Boolean = false,
+    val editSesionId: Long? = null,
     val fecha: LocalDate = LocalDate.now(),
     val selectedPacienteId: Long? = null,
     val horaInicio: String = "",
@@ -35,7 +36,9 @@ data class CrearSesionDialogState(
     val motivo: String = "",
     val error: String? = null,
     val isSaving: Boolean = false
-)
+) {
+    val isEditing: Boolean get() = editSesionId != null
+}
 
 class ListaPacientesViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -47,8 +50,8 @@ class ListaPacientesViewModel(application: Application) : AndroidViewModel(appli
 
     private val _selectedDate = MutableStateFlow(LocalDate.now())
 
-    private val _dialogState = MutableStateFlow(CrearSesionDialogState())
-    val dialogState: StateFlow<CrearSesionDialogState> = _dialogState.asStateFlow()
+    private val _dialogState = MutableStateFlow(SesionDialogState())
+    val dialogState: StateFlow<SesionDialogState> = _dialogState.asStateFlow()
 
     init {
         observeSesiones()
@@ -105,14 +108,26 @@ class ListaPacientesViewModel(application: Application) : AndroidViewModel(appli
     }
 
     fun abrirCrearSesion(date: LocalDate) {
-        _dialogState.value = CrearSesionDialogState(
+        _dialogState.value = SesionDialogState(
             show = true,
             fecha = date
         )
     }
 
+    fun abrirEditarSesion(sesion: Sesion) {
+        _dialogState.value = SesionDialogState(
+            show = true,
+            editSesionId = sesion.id,
+            fecha = LocalDate.ofEpochDay(sesion.fecha),
+            selectedPacienteId = sesion.pacienteId,
+            horaInicio = sesion.horaInicio,
+            horaFin = sesion.horaFin,
+            motivo = sesion.motivo
+        )
+    }
+
     fun cerrarDialogo() {
-        _dialogState.value = CrearSesionDialogState(show = false)
+        _dialogState.value = SesionDialogState(show = false)
     }
 
     fun onPacienteSeleccionado(pacienteId: Long) {
@@ -151,16 +166,19 @@ class ListaPacientesViewModel(application: Application) : AndroidViewModel(appli
 
             val fechaEpoch = state.fecha.toEpochDay()
 
-            val existe = sesionRepo.existeSesionEnHorario(fechaEpoch, state.horaInicio)
-            if (existe) {
-                _dialogState.value = _dialogState.value.copy(
-                    error = "Ya hay una sesión a esa hora",
-                    isSaving = false
-                )
-                return@launch
+            if (!state.isEditing) {
+                val existe = sesionRepo.existeSesionEnHorario(fechaEpoch, state.horaInicio)
+                if (existe) {
+                    _dialogState.value = state.copy(
+                        error = "Ya hay una sesión a esa hora",
+                        isSaving = false
+                    )
+                    return@launch
+                }
             }
 
             val entity = SesionEntity(
+                id = if (state.isEditing) state.editSesionId!! else 0,
                 pacienteId = state.selectedPacienteId,
                 fecha = fechaEpoch,
                 horaInicio = state.horaInicio,
@@ -169,7 +187,12 @@ class ListaPacientesViewModel(application: Application) : AndroidViewModel(appli
                 notas = ""
             )
 
-            sesionRepo.guardarSesion(entity)
+            if (state.isEditing) {
+                sesionRepo.actualizarSesion(entity)
+            } else {
+                sesionRepo.guardarSesion(entity)
+            }
+
             cerrarDialogo()
         }
     }
