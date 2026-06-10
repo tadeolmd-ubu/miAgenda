@@ -1,0 +1,86 @@
+package com.miagenda.app.ui.screens.detail
+
+import android.app.Application
+import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.viewModelScope
+import com.miagenda.app.AgendaApp
+import com.miagenda.app.data.local.entity.PacienteEntity
+import com.miagenda.app.domain.mapper.toEntity
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
+
+data class DetallePacienteUiState(
+    val nombre: String = "",
+    val telefono: String = "",
+    val email: String = "",
+    val notas: String = "",
+    val isSaving: Boolean = false,
+    val isLoaded: Boolean = false,
+    val pacienteId: Long = -1
+)
+
+class DetallePacienteViewModel(application: Application) : AndroidViewModel(application) {
+
+    private val repository = (application as AgendaApp).container.pacienteRepository
+
+    private val _uiState = MutableStateFlow(DetallePacienteUiState())
+    val uiState: StateFlow<DetallePacienteUiState> = _uiState.asStateFlow()
+
+    fun cargarPaciente(id: Long) {
+        if (id == -1L) return
+        viewModelScope.launch {
+            val paciente = repository.getPacientePorId(id) ?: return@launch
+            _uiState.value = DetallePacienteUiState(
+                nombre = paciente.nombre,
+                telefono = paciente.telefono,
+                email = paciente.email,
+                notas = paciente.notas,
+                isLoaded = true,
+                pacienteId = paciente.id
+            )
+        }
+    }
+
+    fun onNombreChange(valor: String) {
+        _uiState.value = _uiState.value.copy(nombre = valor)
+    }
+
+    fun onTelefonoChange(valor: String) {
+        _uiState.value = _uiState.value.copy(telefono = valor)
+    }
+
+    fun onEmailChange(valor: String) {
+        _uiState.value = _uiState.value.copy(email = valor)
+    }
+
+    fun onNotasChange(valor: String) {
+        _uiState.value = _uiState.value.copy(notas = valor)
+    }
+
+    fun guardarPaciente(onSuccess: () -> Unit) {
+        val state = _uiState.value
+        if (state.nombre.isBlank()) return
+
+        viewModelScope.launch {
+            _uiState.value = state.copy(isSaving = true)
+
+            val entity = PacienteEntity(
+                id = if (state.pacienteId > 0) state.pacienteId else 0,
+                nombre = state.nombre.trim(),
+                telefono = state.telefono.trim(),
+                email = state.email.trim(),
+                notas = state.notas.trim()
+            )
+
+            if (state.pacienteId > 0) {
+                repository.actualizarPaciente(entity)
+            } else {
+                repository.guardarPaciente(entity)
+            }
+
+            onSuccess()
+        }
+    }
+}
