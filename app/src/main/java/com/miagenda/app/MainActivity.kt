@@ -14,6 +14,8 @@ import androidx.navigation.navArgument
 import com.miagenda.app.ui.navigation.Screen
 import com.miagenda.app.ui.screens.detail.DetallePacienteScreen
 import com.miagenda.app.ui.screens.list.ListaPacientesScreen
+import com.miagenda.app.ui.screens.pacientes.HistorialPacienteScreen
+import com.miagenda.app.ui.screens.pacientes.TodosPacientesScreen
 import com.miagenda.app.ui.theme.AgendaTheme
 
 class MainActivity : ComponentActivity() {
@@ -43,6 +45,9 @@ fun AppNavHost() {
                 },
                 onNavigateToNuevo = {
                     navController.navigate(Screen.DetallePaciente.newRoute())
+                },
+                onNavigateToPacientes = {
+                    navController.navigate(Screen.TodosPacientes.route)
                 }
             )
         }
@@ -57,6 +62,31 @@ fun AppNavHost() {
             DetallePacienteScreen(
                 pacienteId = pacienteId,
                 onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        composable(Screen.TodosPacientes.route) {
+            TodosPacientesScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onPacienteClick = { id ->
+                    navController.navigate(Screen.HistorialPaciente.createRoute(id))
+                }
+            )
+        }
+
+        composable(
+            route = Screen.HistorialPaciente.route,
+            arguments = listOf(
+                navArgument("pacienteId") { type = NavType.LongType }
+            )
+        ) { backStackEntry ->
+            val pacienteId = backStackEntry.arguments?.getLong("pacienteId") ?: -1L
+            HistorialPacienteScreen(
+                pacienteId = pacienteId,
+                onNavigateBack = { navController.popBackStack() },
+                onEditPaciente = { id ->
+                    navController.navigate(Screen.DetallePaciente.createRoute(id))
+                }
             )
         }
     }

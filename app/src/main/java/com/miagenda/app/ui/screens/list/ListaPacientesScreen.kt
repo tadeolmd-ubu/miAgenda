@@ -19,6 +19,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.outlined.Event
 import androidx.compose.material3.Card
@@ -55,6 +56,7 @@ import java.util.Locale
 fun ListaPacientesScreen(
     onNavigateToDetalle: (Long) -> Unit,
     onNavigateToNuevo: () -> Unit,
+    onNavigateToPacientes: () -> Unit,
     viewModel: ListaPacientesViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -63,9 +65,18 @@ fun ListaPacientesScreen(
         topBar = {
             TopAppBar(
                 title = { Text("Mi Agenda") },
+                actions = {
+                    IconButton(onClick = onNavigateToPacientes) {
+                        Icon(
+                            imageVector = Icons.Default.People,
+                            contentDescription = "Pacientes"
+                        )
+                    }
+                },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.primary,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimary
+                    titleContentColor = MaterialTheme.colorScheme.onPrimary,
+                    actionIconContentColor = MaterialTheme.colorScheme.onPrimary
                 )
             )
         },

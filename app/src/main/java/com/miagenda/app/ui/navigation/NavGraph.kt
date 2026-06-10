@@ -7,4 +7,9 @@ sealed class Screen(val route: String) {
         fun newRoute() = "detalle_paciente/-1"
         const val ARG_PACIENTE_ID = "pacienteId"
     }
+    data object TodosPacientes : Screen("todos_pacientes")
+    data object HistorialPaciente : Screen("historial_paciente/{pacienteId}") {
+        fun createRoute(id: Long) = "historial_paciente/$id"
+        const val ARG_PACIENTE_ID = "pacienteId"
+    }
 }
