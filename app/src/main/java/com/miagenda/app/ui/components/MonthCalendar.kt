@@ -201,6 +201,12 @@ private fun DayCell(
         else -> MaterialTheme.colorScheme.onSurface
     }
 
+    val dotColor = when {
+        isSelected -> MaterialTheme.colorScheme.onPrimary
+        isToday -> MaterialTheme.colorScheme.primary
+        else -> MaterialTheme.colorScheme.primary
+    }
+
     Box(
         modifier = modifier
             .aspectRatio(1f)
@@ -216,13 +222,16 @@ private fun DayCell(
                 fontWeight = if (isSelected || isToday) FontWeight.Bold else FontWeight.Normal,
                 color = textColor
             )
+            Spacer(modifier = Modifier.height(2.dp))
             if (hasAppointment) {
                 Box(
                     modifier = Modifier
-                        .size(4.dp)
+                        .size(6.dp)
                         .clip(CircleShape)
-                        .background(if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.primary)
+                        .background(dotColor)
                 )
+            } else {
+                Spacer(modifier = Modifier.size(6.dp))
             }
         }
     }

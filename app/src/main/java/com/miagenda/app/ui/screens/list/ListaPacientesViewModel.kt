@@ -92,7 +92,6 @@ class ListaPacientesViewModel(application: Application) : AndroidViewModel(appli
 
     fun onDateSelected(date: LocalDate) {
         _selectedDate.value = date
-        abrirCrearSesion(date)
     }
 
     fun onMonthChange(yearMonth: YearMonth) {

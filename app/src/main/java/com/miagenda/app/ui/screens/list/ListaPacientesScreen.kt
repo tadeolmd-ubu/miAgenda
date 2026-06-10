@@ -1,6 +1,5 @@
 package com.miagenda.app.ui.screens.list
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -22,8 +21,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.People
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.outlined.Event
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -154,7 +151,8 @@ fun ListaPacientesScreen(
                 DayAppointmentsSection(
                     selectedDate = uiState.selectedDate,
                     sesiones = uiState.sesionesDelDia,
-                    onDeleteSesion = viewModel::eliminarSesion
+                    onDeleteSesion = viewModel::eliminarSesion,
+                    onAddSesion = viewModel::abrirCrearSesion
                 )
             }
         }
@@ -309,7 +307,8 @@ private fun CrearSesionDialog(
 private fun DayAppointmentsSection(
     selectedDate: LocalDate,
     sesiones: List<Sesion>,
-    onDeleteSesion: (Sesion) -> Unit
+    onDeleteSesion: (Sesion) -> Unit,
+    onAddSesion: (LocalDate) -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -320,12 +319,25 @@ private fun DayAppointmentsSection(
         val dateText = selectedDate.format(formatter)
             .replaceFirstChar { it.uppercase() }
 
-        Text(
-            text = dateText,
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.SemiBold,
-            color = MaterialTheme.colorScheme.onSurface
-        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = dateText,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.weight(1f)
+            )
+            IconButton(onClick = { onAddSesion(selectedDate) }) {
+                Icon(
+                    imageVector = Icons.Default.Add,
+                    contentDescription = "Nueva sesión",
+                    tint = MaterialTheme.colorScheme.primary
+                )
+            }
+        }
 
         Spacer(modifier = Modifier.height(8.dp))
 
