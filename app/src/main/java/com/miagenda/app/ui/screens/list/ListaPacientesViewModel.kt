@@ -6,45 +6,67 @@ import androidx.lifecycle.viewModelScope
 import com.miagenda.app.AgendaApp
 import com.miagenda.app.data.local.entity.PacienteEntity
 import com.miagenda.app.domain.mapper.toDomain
+import com.miagenda.app.domain.mapper.toEntity
+import com.miagenda.app.domain.model.Cita
 import com.miagenda.app.domain.model.Paciente
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
+import java.time.LocalDate
+import java.time.YearMonth
 
 data class ListaPacientesUiState(
+    val selectedDate: LocalDate = LocalDate.now(),
+    val citasDelDia: List<Cita> = emptyList(),
+    val fechasConCitas: Set<LocalDate> = emptySet(),
     val pacientes: List<Paciente> = emptyList(),
-    val searchQuery: String = "",
     val isLoading: Boolean = true
 )
 
 class ListaPacientesViewModel(application: Application) : AndroidViewModel(application) {
 
-    private val repository = (application as AgendaApp).container.pacienteRepository
+    private val pacienteRepo = (application as AgendaApp).container.pacienteRepository
+    private val citaRepo = (application as AgendaApp).container.citaRepository
 
     private val _uiState = MutableStateFlow(ListaPacientesUiState())
     val uiState: StateFlow<ListaPacientesUiState> = _uiState.asStateFlow()
 
-    private val _searchQuery = MutableStateFlow("")
+    private val _selectedDate = MutableStateFlow(LocalDate.now())
 
     init {
+        observeCitas()
+    }
+
+    private fun observeCitas() {
         viewModelScope.launch {
             combine(
-                repository.todosPacientes,
-                _searchQuery
-            ) { pacientes, query ->
-                val filtrados = if (query.isBlank()) {
-                    pacientes
-                } else {
-                    pacientes.filter {
-                        it.nombre.contains(query, ignoreCase = true) ||
-                        it.telefono.contains(query, ignoreCase = true)
+                citaRepo.todasLasCitas,
+                _selectedDate,
+                pacienteRepo.todosPacientes
+            ) { citas, selectedDate, pacientes ->
+                val pacienteMap = pacientes.associateBy { it.id }
+
+                val fechasConCitas = citas.map {
+                    LocalDate.ofEpochDay(it.fecha)
+                }.toSet()
+
+                val citasDelDia = citas
+                    .filter { it.fecha == selectedDate.toEpochDay() }
+                    .map { citaEntity ->
+                        val paciente = pacienteMap[citaEntity.pacienteId]
+                        citaEntity.toDomain(nombrePaciente = paciente?.nombre ?: "Desconocido")
                     }
-                }
+                    .sortedBy { it.horaInicio }
+
+                val pacientesDomain = pacientes.map { it.toDomain() }
+
                 ListaPacientesUiState(
-                    pacientes = filtrados.map { it.toDomain() },
-                    searchQuery = query,
+                    selectedDate = selectedDate,
+                    citasDelDia = citasDelDia,
+                    fechasConCitas = fechasConCitas,
+                    pacientes = pacientesDomain,
                     isLoading = false
                 )
             }.collect { state ->
@@ -53,13 +75,29 @@ class ListaPacientesViewModel(application: Application) : AndroidViewModel(appli
         }
     }
 
-    fun onSearchQueryChange(query: String) {
-        _searchQuery.value = query
+    fun onDateSelected(date: LocalDate) {
+        _selectedDate.value = date
     }
 
-    fun eliminarPaciente(paciente: PacienteEntity) {
+    fun onMonthChange(yearMonth: YearMonth) {
+        val currentDate = _selectedDate.value
+        val newDate = if (yearMonth.lengthOfMonth() >= currentDate.dayOfMonth) {
+            yearMonth.atDay(currentDate.dayOfMonth.coerceAtMost(yearMonth.lengthOfMonth()))
+        } else {
+            yearMonth.atEndOfMonth()
+        }
+        _selectedDate.value = newDate
+    }
+
+    fun eliminarCita(cita: Cita) {
         viewModelScope.launch {
-            repository.eliminarPaciente(paciente)
+            citaRepo.eliminarCita(cita.toEntity())
+        }
+    }
+
+    fun eliminarPaciente(pacienteEntity: PacienteEntity) {
+        viewModelScope.launch {
+            pacienteRepo.eliminarPaciente(pacienteEntity)
         }
     }
 }

@@ -4,17 +4,20 @@ import android.content.Context
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import com.miagenda.app.data.local.dao.CitaDao
 import com.miagenda.app.data.local.dao.PacienteDao
+import com.miagenda.app.data.local.entity.CitaEntity
 import com.miagenda.app.data.local.entity.PacienteEntity
 
 @Database(
-    entities = [PacienteEntity::class],
-    version = 1,
+    entities = [PacienteEntity::class, CitaEntity::class],
+    version = 2,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
 
     abstract fun pacienteDao(): PacienteDao
+    abstract fun citaDao(): CitaDao
 
     companion object {
         @Volatile
@@ -26,7 +29,9 @@ abstract class AppDatabase : RoomDatabase() {
                     context.applicationContext,
                     AppDatabase::class.java,
                     "miagenda.db"
-                ).build()
+                )
+                    .fallbackToDestructiveMigration()
+                    .build()
                 INSTANCE = instance
                 instance
             }
