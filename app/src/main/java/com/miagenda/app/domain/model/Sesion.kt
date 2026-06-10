@@ -1,6 +1,6 @@
 package com.miagenda.app.domain.model
 
-data class Cita(
+data class Sesion(
     val id: Long = 0,
     val pacienteId: Long,
     val fecha: Long,

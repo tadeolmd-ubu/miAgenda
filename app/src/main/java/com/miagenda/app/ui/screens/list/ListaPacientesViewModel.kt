@@ -7,8 +7,8 @@ import com.miagenda.app.AgendaApp
 import com.miagenda.app.data.local.entity.PacienteEntity
 import com.miagenda.app.domain.mapper.toDomain
 import com.miagenda.app.domain.mapper.toEntity
-import com.miagenda.app.domain.model.Cita
 import com.miagenda.app.domain.model.Paciente
+import com.miagenda.app.domain.model.Sesion
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -19,8 +19,8 @@ import java.time.YearMonth
 
 data class ListaPacientesUiState(
     val selectedDate: LocalDate = LocalDate.now(),
-    val citasDelDia: List<Cita> = emptyList(),
-    val fechasConCitas: Set<LocalDate> = emptySet(),
+    val sesionesDelDia: List<Sesion> = emptyList(),
+    val fechasConSesiones: Set<LocalDate> = emptySet(),
     val pacientes: List<Paciente> = emptyList(),
     val isLoading: Boolean = true
 )
@@ -28,7 +28,7 @@ data class ListaPacientesUiState(
 class ListaPacientesViewModel(application: Application) : AndroidViewModel(application) {
 
     private val pacienteRepo = (application as AgendaApp).container.pacienteRepository
-    private val citaRepo = (application as AgendaApp).container.citaRepository
+    private val sesionRepo = (application as AgendaApp).container.sesionRepository
 
     private val _uiState = MutableStateFlow(ListaPacientesUiState())
     val uiState: StateFlow<ListaPacientesUiState> = _uiState.asStateFlow()
@@ -36,27 +36,27 @@ class ListaPacientesViewModel(application: Application) : AndroidViewModel(appli
     private val _selectedDate = MutableStateFlow(LocalDate.now())
 
     init {
-        observeCitas()
+        observeSesiones()
     }
 
-    private fun observeCitas() {
+    private fun observeSesiones() {
         viewModelScope.launch {
             combine(
-                citaRepo.todasLasCitas,
+                sesionRepo.todasLasSesiones,
                 _selectedDate,
                 pacienteRepo.todosPacientes
-            ) { citas, selectedDate, pacientes ->
+            ) { sesiones, selectedDate, pacientes ->
                 val pacienteMap = pacientes.associateBy { it.id }
 
-                val fechasConCitas = citas.map {
+                val fechasConSesiones = sesiones.map {
                     LocalDate.ofEpochDay(it.fecha)
                 }.toSet()
 
-                val citasDelDia = citas
+                val sesionesDelDia = sesiones
                     .filter { it.fecha == selectedDate.toEpochDay() }
-                    .map { citaEntity ->
-                        val paciente = pacienteMap[citaEntity.pacienteId]
-                        citaEntity.toDomain(nombrePaciente = paciente?.nombre ?: "Desconocido")
+                    .map { sesionEntity ->
+                        val paciente = pacienteMap[sesionEntity.pacienteId]
+                        sesionEntity.toDomain(nombrePaciente = paciente?.nombre ?: "Desconocido")
                     }
                     .sortedBy { it.horaInicio }
 
@@ -64,8 +64,8 @@ class ListaPacientesViewModel(application: Application) : AndroidViewModel(appli
 
                 ListaPacientesUiState(
                     selectedDate = selectedDate,
-                    citasDelDia = citasDelDia,
-                    fechasConCitas = fechasConCitas,
+                    sesionesDelDia = sesionesDelDia,
+                    fechasConSesiones = fechasConSesiones,
                     pacientes = pacientesDomain,
                     isLoading = false
                 )
@@ -89,9 +89,9 @@ class ListaPacientesViewModel(application: Application) : AndroidViewModel(appli
         _selectedDate.value = newDate
     }
 
-    fun eliminarCita(cita: Cita) {
+    fun eliminarSesion(sesion: Sesion) {
         viewModelScope.launch {
-            citaRepo.eliminarCita(cita.toEntity())
+            sesionRepo.eliminarSesion(sesion.toEntity())
         }
     }
 

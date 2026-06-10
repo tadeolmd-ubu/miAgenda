@@ -6,7 +6,7 @@ import androidx.room.Index
 import androidx.room.PrimaryKey
 
 @Entity(
-    tableName = "citas",
+    tableName = "sesiones",
     foreignKeys = [
         ForeignKey(
             entity = PacienteEntity::class,
@@ -20,7 +20,7 @@ import androidx.room.PrimaryKey
         Index("fecha")
     ]
 )
-data class CitaEntity(
+data class SesionEntity(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0,
     val pacienteId: Long,

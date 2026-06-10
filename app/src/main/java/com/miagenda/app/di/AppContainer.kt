@@ -2,8 +2,8 @@ package com.miagenda.app.di
 
 import android.content.Context
 import com.miagenda.app.data.local.AppDatabase
-import com.miagenda.app.data.repository.CitaRepository
 import com.miagenda.app.data.repository.PacienteRepository
+import com.miagenda.app.data.repository.SesionRepository
 
 class AppContainer(context: Context) {
 
@@ -13,7 +13,7 @@ class AppContainer(context: Context) {
         PacienteRepository(database.pacienteDao())
     }
 
-    val citaRepository: CitaRepository by lazy {
-        CitaRepository(database.citaDao())
+    val sesionRepository: SesionRepository by lazy {
+        SesionRepository(database.sesionDao())
     }
 }

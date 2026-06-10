@@ -43,7 +43,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.miagenda.app.domain.model.Cita
+import com.miagenda.app.domain.model.Sesion
 import com.miagenda.app.ui.components.EmptyState
 import com.miagenda.app.ui.components.MonthlyCalendar
 import java.time.LocalDate
@@ -100,7 +100,7 @@ fun ListaPacientesScreen(
                     selectedDate = uiState.selectedDate,
                     onDateSelected = viewModel::onDateSelected,
                     onMonthChange = viewModel::onMonthChange,
-                    datesWithAppointments = uiState.fechasConCitas,
+                    datesWithAppointments = uiState.fechasConSesiones,
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(top = 8.dp)
@@ -113,8 +113,8 @@ fun ListaPacientesScreen(
 
                 DayAppointmentsSection(
                     selectedDate = uiState.selectedDate,
-                    citas = uiState.citasDelDia,
-                    onDeleteCita = viewModel::eliminarCita
+                    sesiones = uiState.sesionesDelDia,
+                    onDeleteSesion = viewModel::eliminarSesion
                 )
             }
         }
@@ -124,8 +124,8 @@ fun ListaPacientesScreen(
 @Composable
 private fun DayAppointmentsSection(
     selectedDate: LocalDate,
-    citas: List<Cita>,
-    onDeleteCita: (Cita) -> Unit
+    sesiones: List<Sesion>,
+    onDeleteSesion: (Sesion) -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -145,9 +145,9 @@ private fun DayAppointmentsSection(
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        if (citas.isEmpty()) {
+        if (sesiones.isEmpty()) {
             EmptyState(
-                mensaje = "No hay citas para este día",
+                mensaje = "No hay sesiones para este día",
                 modifier = Modifier.weight(1f)
             )
         } else {
@@ -155,10 +155,10 @@ private fun DayAppointmentsSection(
                 verticalArrangement = Arrangement.spacedBy(8.dp),
                 contentPadding = PaddingValues(bottom = 80.dp)
             ) {
-                items(citas, key = { it.id }) { cita ->
-                    CitaCard(
-                        cita = cita,
-                        onDelete = { onDeleteCita(cita) }
+                items(sesiones, key = { it.id }) { sesion ->
+                    SesionCard(
+                        sesion = sesion,
+                        onDelete = { onDeleteSesion(sesion) }
                     )
                 }
             }
@@ -167,8 +167,8 @@ private fun DayAppointmentsSection(
 }
 
 @Composable
-private fun CitaCard(
-    cita: Cita,
+private fun SesionCard(
+    sesion: Sesion,
     onDelete: () -> Unit
 ) {
     Card(
@@ -188,14 +188,14 @@ private fun CitaCard(
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(
-                        text = cita.horaInicio,
+                        text = sesion.horaInicio,
                         style = MaterialTheme.typography.labelLarge,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.primary
                     )
-                    if (cita.horaFin.isNotBlank()) {
+                    if (sesion.horaFin.isNotBlank()) {
                         Text(
-                            text = cita.horaFin,
+                            text = sesion.horaFin,
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -207,15 +207,15 @@ private fun CitaCard(
 
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = cita.nombrePaciente,
+                    text = sesion.nombrePaciente,
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.SemiBold,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
-                if (cita.motivo.isNotBlank()) {
+                if (sesion.motivo.isNotBlank()) {
                     Text(
-                        text = cita.motivo,
+                        text = sesion.motivo,
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
@@ -227,7 +227,7 @@ private fun CitaCard(
             IconButton(onClick = onDelete) {
                 Icon(
                     imageVector = Icons.Default.Delete,
-                    contentDescription = "Eliminar cita",
+                    contentDescription = "Eliminar sesión",
                     tint = MaterialTheme.colorScheme.error
                 )
             }

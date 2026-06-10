@@ -1,9 +1,9 @@
 package com.miagenda.app.domain.mapper
 
-import com.miagenda.app.data.local.entity.CitaEntity
-import com.miagenda.app.domain.model.Cita
+import com.miagenda.app.data.local.entity.SesionEntity
+import com.miagenda.app.domain.model.Sesion
 
-fun CitaEntity.toDomain(nombrePaciente: String = ""): Cita = Cita(
+fun SesionEntity.toDomain(nombrePaciente: String = ""): Sesion = Sesion(
     id = id,
     pacienteId = pacienteId,
     fecha = fecha,
@@ -15,7 +15,7 @@ fun CitaEntity.toDomain(nombrePaciente: String = ""): Cita = Cita(
     nombrePaciente = nombrePaciente
 )
 
-fun Cita.toEntity(): CitaEntity = CitaEntity(
+fun Sesion.toEntity(): SesionEntity = SesionEntity(
     id = id,
     pacienteId = pacienteId,
     fecha = fecha,
