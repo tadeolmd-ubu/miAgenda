@@ -1,5 +1,8 @@
 package com.miagenda.app.ui.screens.list
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -9,12 +12,15 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -22,6 +28,8 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.People
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -50,19 +58,32 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.LayoutCoordinates
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.zIndex
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.miagenda.app.domain.model.Paciente
 import com.miagenda.app.domain.model.Sesion
+import com.miagenda.app.ui.components.CalendarGridInfo
 import com.miagenda.app.ui.components.EmptyState
 import com.miagenda.app.ui.components.MonthlyCalendar
+import kotlin.math.roundToInt
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
+
+private data class DragState(
+    val paciente: Paciente,
+    val position: Offset
+)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -70,10 +91,14 @@ fun ListaPacientesScreen(
     onNavigateToDetalle: (Long) -> Unit,
     onNavigateToNuevo: () -> Unit,
     onNavigateToPacientes: () -> Unit,
+    onNavigateToAjustes: () -> Unit,
     viewModel: ListaPacientesViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val dialogState by viewModel.dialogState.collectAsState()
+
+    var dragState by remember { mutableStateOf<DragState?>(null) }
+    var calendarGridPosition by remember { mutableStateOf<CalendarGridInfo?>(null) }
 
     if (dialogState.show) {
         SesionDialog(
@@ -88,77 +113,248 @@ fun ListaPacientesScreen(
         )
     }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Mi Agenda") },
-                actions = {
-                    IconButton(onClick = onNavigateToPacientes) {
-                        Icon(
-                            imageVector = Icons.Default.People,
-                            contentDescription = "Pacientes"
+    Box(modifier = Modifier.fillMaxSize()) {
+        Scaffold(
+            topBar = {
+                TopAppBar(
+                    title = { Text("Mi Agenda") },
+                    actions = {
+                        IconButton(onClick = onNavigateToAjustes) {
+                            Icon(
+                                imageVector = Icons.Default.Settings,
+                                contentDescription = "Ajustes"
+                            )
+                        }
+                        IconButton(onClick = onNavigateToPacientes) {
+                            Icon(
+                                imageVector = Icons.Default.People,
+                                contentDescription = "Pacientes"
+                            )
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        titleContentColor = MaterialTheme.colorScheme.onPrimary,
+                        actionIconContentColor = MaterialTheme.colorScheme.onPrimary
+                    )
+                )
+            },
+            floatingActionButton = {
+                FloatingActionButton(
+                    onClick = onNavigateToNuevo,
+                    containerColor = MaterialTheme.colorScheme.secondary
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Add,
+                        contentDescription = "Nuevo paciente"
+                    )
+                }
+            }
+        ) { paddingValues ->
+            if (uiState.isLoading) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(paddingValues),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator()
+                }
+            } else {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(paddingValues)
+                ) {
+                    MonthlyCalendar(
+                        selectedDate = uiState.selectedDate,
+                        onDateSelected = viewModel::onDateSelected,
+                        onMonthChange = viewModel::onMonthChange,
+                        datesWithAppointments = uiState.fechasConSesiones,
+                        onGridInfoChanged = { calendarGridPosition = it },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 8.dp)
+                    )
+
+                    if (uiState.pacientes.isNotEmpty()) {
+                        PacienteChipsRow(
+                            pacientes = uiState.pacientes,
+                            onDragStart = { paciente, position ->
+                                dragState = DragState(paciente, position)
+                            },
+                            onDragMove = { delta ->
+                                dragState = dragState?.copy(
+                                    position = dragState!!.position + delta
+                                )
+                            },
+                            onDragEnd = {
+                                val state = dragState
+                                val targetDay = state?.let {
+                                    getDropTargetDate(it.position, calendarGridPosition)
+                                }
+                                dragState = null
+                                if (targetDay != null && state != null) {
+                                    viewModel.onDateSelected(targetDay)
+                                    viewModel.abrirCrearSesion(targetDay, state.paciente.id)
+                                }
+                            },
+                            onDragCancel = { dragState = null }
                         )
                     }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimary,
-                    actionIconContentColor = MaterialTheme.colorScheme.onPrimary
-                )
-            )
-        },
-        floatingActionButton = {
-            FloatingActionButton(
-                onClick = onNavigateToNuevo,
-                containerColor = MaterialTheme.colorScheme.secondary
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Add,
-                    contentDescription = "Nuevo paciente"
-                )
+
+                    HorizontalDivider(
+                        modifier = Modifier.padding(vertical = 4.dp),
+                        color = MaterialTheme.colorScheme.outlineVariant
+                    )
+
+                    DayAppointmentsSection(
+                        selectedDate = uiState.selectedDate,
+                        sesiones = uiState.sesionesDelDia,
+                        onDeleteSesion = viewModel::eliminarSesion,
+                        onEditSesion = viewModel::abrirEditarSesion,
+                        onAddSesion = viewModel::abrirCrearSesion
+                    )
+                }
             }
         }
-    ) { paddingValues ->
-        if (uiState.isLoading) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(paddingValues),
-                contentAlignment = Alignment.Center
-            ) {
-                CircularProgressIndicator()
-            }
-        } else {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(paddingValues)
-            ) {
-                MonthlyCalendar(
-                    selectedDate = uiState.selectedDate,
-                    onDateSelected = viewModel::onDateSelected,
-                    onMonthChange = viewModel::onMonthChange,
-                    datesWithAppointments = uiState.fechasConSesiones,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 8.dp)
-                )
 
-                HorizontalDivider(
-                    modifier = Modifier.padding(vertical = 8.dp),
-                    color = MaterialTheme.colorScheme.outlineVariant
+        dragState?.let { state ->
+            Card(
+                modifier = Modifier
+                    .offset {
+                        IntOffset(
+                            (state.position.x - 100).roundToInt(),
+                            (state.position.y - 44).roundToInt()
+                        )
+                    }
+                    .zIndex(10f),
+                elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
+                shape = RoundedCornerShape(12.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.primaryContainer
                 )
-
-                DayAppointmentsSection(
-                    selectedDate = uiState.selectedDate,
-                    sesiones = uiState.sesionesDelDia,
-                    onDeleteSesion = viewModel::eliminarSesion,
-                    onEditSesion = viewModel::abrirEditarSesion,
-                    onAddSesion = viewModel::abrirCrearSesion
-                )
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Person,
+                        contentDescription = null,
+                        modifier = Modifier.size(20.dp),
+                        tint = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = state.paciente.nombre,
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                }
             }
         }
     }
+}
+
+@Composable
+private fun PacienteChipsRow(
+    pacientes: List<Paciente>,
+    onDragStart: (Paciente, Offset) -> Unit,
+    onDragMove: (Offset) -> Unit,
+    onDragEnd: () -> Unit,
+    onDragCancel: () -> Unit
+) {
+    LazyRow(
+        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        items(pacientes, key = { it.id }) { paciente ->
+            PacienteDragChip(
+                paciente = paciente,
+                onDragStart = { pos -> onDragStart(paciente, pos) },
+                onDragMove = onDragMove,
+                onDragEnd = onDragEnd,
+                onDragCancel = onDragCancel
+            )
+        }
+    }
+}
+
+@Composable
+private fun PacienteDragChip(
+    paciente: Paciente,
+    onDragStart: (Offset) -> Unit,
+    onDragMove: (Offset) -> Unit,
+    onDragEnd: () -> Unit,
+    onDragCancel: () -> Unit
+) {
+    var chipLayout by remember { mutableStateOf<LayoutCoordinates?>(null) }
+
+    Card(
+        modifier = Modifier
+            .onGloballyPositioned { chipLayout = it }
+            .pointerInput(paciente.id) {
+                detectDragGesturesAfterLongPress(
+                    onDragStart = { offset ->
+                        val windowPos = chipLayout?.localToWindow(offset)
+                            ?: return@detectDragGesturesAfterLongPress
+                        onDragStart(windowPos)
+                    },
+                    onDrag = { change, dragAmount ->
+                        change.consume()
+                        onDragMove(dragAmount)
+                    },
+                    onDragEnd = onDragEnd,
+                    onDragCancel = onDragCancel
+                )
+            },
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.secondaryContainer
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = Icons.Default.Person,
+                contentDescription = null,
+                modifier = Modifier.size(18.dp),
+                tint = MaterialTheme.colorScheme.onSecondaryContainer
+            )
+            Spacer(modifier = Modifier.width(6.dp))
+            Text(
+                text = paciente.nombre,
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSecondaryContainer,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+    }
+}
+
+private fun getDropTargetDate(
+    dropPosition: Offset,
+    gridInfo: CalendarGridInfo?
+): LocalDate? {
+    if (gridInfo == null) return null
+    val localX = dropPosition.x - gridInfo.gridBounds.left
+    val localY = dropPosition.y - gridInfo.gridBounds.top
+    if (localX < 0 || localY < 0 ||
+        localX > gridInfo.gridBounds.width ||
+        localY > gridInfo.gridBounds.height
+    ) return null
+    val col = (localX / gridInfo.cellSize).toInt().coerceIn(0, 6)
+    val row = (localY / gridInfo.cellSize).toInt()
+    val cellIndex = row * 7 + col
+    val dayNumber = cellIndex - gridInfo.firstDayOffset + 1
+    if (dayNumber < 1 || dayNumber > gridInfo.daysInMonth) return null
+    return gridInfo.yearMonth.atDay(dayNumber)
 }
 
 @OptIn(ExperimentalMaterial3Api::class)

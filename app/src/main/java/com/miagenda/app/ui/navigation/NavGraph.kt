@@ -12,4 +12,5 @@ sealed class Screen(val route: String) {
         fun createRoute(id: Long) = "historial_paciente/$id"
         const val ARG_PACIENTE_ID = "pacienteId"
     }
+    data object Ajustes : Screen("ajustes")
 }

@@ -107,10 +107,11 @@ class ListaPacientesViewModel(application: Application) : AndroidViewModel(appli
         _selectedDate.value = newDate
     }
 
-    fun abrirCrearSesion(date: LocalDate) {
+    fun abrirCrearSesion(date: LocalDate, pacienteId: Long? = null) {
         _dialogState.value = SesionDialogState(
             show = true,
-            fecha = date
+            fecha = date,
+            selectedPacienteId = pacienteId
         )
     }
 

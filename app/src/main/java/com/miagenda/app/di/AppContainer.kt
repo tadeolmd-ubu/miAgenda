@@ -16,4 +16,9 @@ class AppContainer(context: Context) {
     val sesionRepository: SesionRepository by lazy {
         SesionRepository(database.sesionDao())
     }
+
+    suspend fun borrarTodosLosDatos() {
+        sesionRepository.eliminarTodas()
+        pacienteRepository.eliminarTodos()
+    }
 }

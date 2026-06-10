@@ -4,14 +4,19 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.runtime.Composable
-import androidx.core.os.bundleOf
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.miagenda.app.ui.navigation.Screen
+import com.miagenda.app.ui.screens.ajustes.AjustesScreen
 import com.miagenda.app.ui.screens.detail.DetallePacienteScreen
 import com.miagenda.app.ui.screens.list.ListaPacientesScreen
 import com.miagenda.app.ui.screens.pacientes.HistorialPacienteScreen
@@ -36,7 +41,23 @@ fun AppNavHost() {
 
     NavHost(
         navController = navController,
-        startDestination = Screen.ListaPacientes.route
+        startDestination = Screen.ListaPacientes.route,
+        enterTransition = {
+            fadeIn(animationSpec = tween(300)) +
+                slideInHorizontally(initialOffsetX = { it / 4 })
+        },
+        exitTransition = {
+            fadeOut(animationSpec = tween(300)) +
+                slideOutHorizontally(targetOffsetX = { -it / 4 })
+        },
+        popEnterTransition = {
+            fadeIn(animationSpec = tween(300)) +
+                slideInHorizontally(initialOffsetX = { -it / 4 })
+        },
+        popExitTransition = {
+            fadeOut(animationSpec = tween(300)) +
+                slideOutHorizontally(targetOffsetX = { it / 4 })
+        }
     ) {
         composable(Screen.ListaPacientes.route) {
             ListaPacientesScreen(
@@ -48,6 +69,9 @@ fun AppNavHost() {
                 },
                 onNavigateToPacientes = {
                     navController.navigate(Screen.TodosPacientes.route)
+                },
+                onNavigateToAjustes = {
+                    navController.navigate(Screen.Ajustes.route)
                 }
             )
         }
@@ -87,6 +111,12 @@ fun AppNavHost() {
                 onEditPaciente = { id ->
                     navController.navigate(Screen.DetallePaciente.createRoute(id))
                 }
+            )
+        }
+
+        composable(Screen.Ajustes.route) {
+            AjustesScreen(
+                onNavigateBack = { navController.popBackStack() }
             )
         }
     }

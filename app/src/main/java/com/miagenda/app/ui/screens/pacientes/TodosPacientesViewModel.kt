@@ -6,8 +6,6 @@ import androidx.lifecycle.viewModelScope
 import com.miagenda.app.AgendaApp
 import com.miagenda.app.domain.mapper.toDomain
 import com.miagenda.app.domain.model.Paciente
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -25,8 +23,6 @@ class TodosPacientesViewModel(application: Application) : AndroidViewModel(appli
 
     private val _uiState = MutableStateFlow(TodosPacientesUiState())
     val uiState: StateFlow<TodosPacientesUiState> = _uiState.asStateFlow()
-
-    private var searchJob: Job? = null
 
     init {
         cargarPacientes()

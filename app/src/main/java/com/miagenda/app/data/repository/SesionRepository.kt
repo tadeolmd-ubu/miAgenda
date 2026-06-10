@@ -37,4 +37,8 @@ class SesionRepository(
     suspend fun eliminarSesion(sesion: SesionEntity) {
         sesionDao.deleteSesion(sesion)
     }
+
+    suspend fun eliminarTodas() {
+        sesionDao.deleteAll()
+    }
 }

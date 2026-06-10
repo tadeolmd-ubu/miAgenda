@@ -25,4 +25,8 @@ class PacienteRepository(
     suspend fun eliminarPaciente(paciente: PacienteEntity) {
         pacienteDao.deletePaciente(paciente)
     }
+
+    suspend fun eliminarTodos() {
+        pacienteDao.deleteAll()
+    }
 }

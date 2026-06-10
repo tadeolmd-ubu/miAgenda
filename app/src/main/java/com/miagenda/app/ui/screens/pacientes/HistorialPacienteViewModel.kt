@@ -9,6 +9,7 @@ import com.miagenda.app.domain.mapper.toDomain
 import com.miagenda.app.domain.mapper.toEntity
 import com.miagenda.app.domain.model.Paciente
 import com.miagenda.app.domain.model.Sesion
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -46,9 +47,12 @@ class HistorialPacienteViewModel(application: Application) : AndroidViewModel(ap
     private val _dialogState = MutableStateFlow(HistorialDialogState())
     val dialogState: StateFlow<HistorialDialogState> = _dialogState.asStateFlow()
 
+    private var cargarJob: Job? = null
+
     fun cargarHistorial(pacienteId: Long) {
         if (pacienteId == -1L) return
-        viewModelScope.launch {
+        cargarJob?.cancel()
+        cargarJob = viewModelScope.launch {
             val pacienteEntity = pacienteRepo.getPacientePorId(pacienteId) ?: return@launch
             val paciente = pacienteEntity.toDomain()
 

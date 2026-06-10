@@ -35,4 +35,7 @@ interface SesionDao {
 
     @Delete
     suspend fun deleteSesion(sesion: SesionEntity)
+
+    @Query("DELETE FROM sesiones")
+    suspend fun deleteAll()
 }

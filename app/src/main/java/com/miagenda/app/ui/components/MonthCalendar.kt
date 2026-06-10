@@ -21,9 +21,16 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.layout.boundsInWindow
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -33,13 +40,22 @@ import java.time.YearMonth
 import java.time.format.TextStyle
 import java.util.Locale
 
+data class CalendarGridInfo(
+    val gridBounds: Rect,
+    val cellSize: Float,
+    val firstDayOffset: Int,
+    val daysInMonth: Int,
+    val yearMonth: YearMonth
+)
+
 @Composable
 fun MonthlyCalendar(
     selectedDate: LocalDate,
     onDateSelected: (LocalDate) -> Unit,
     onMonthChange: (YearMonth) -> Unit,
     datesWithAppointments: Set<LocalDate>,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onGridInfoChanged: ((CalendarGridInfo) -> Unit)? = null
 ) {
     val yearMonth = YearMonth.from(selectedDate)
     val daysInMonth = yearMonth.lengthOfMonth()
@@ -66,7 +82,8 @@ fun MonthlyCalendar(
             selectedDate = selectedDate,
             today = today,
             datesWithAppointments = datesWithAppointments,
-            onDateSelected = onDateSelected
+            onDateSelected = onDateSelected,
+            onGridInfoChanged = onGridInfoChanged
         )
     }
 }
@@ -140,40 +157,65 @@ private fun DaysGrid(
     selectedDate: LocalDate,
     today: LocalDate,
     datesWithAppointments: Set<LocalDate>,
-    onDateSelected: (LocalDate) -> Unit
+    onDateSelected: (LocalDate) -> Unit,
+    onGridInfoChanged: ((CalendarGridInfo) -> Unit)?
 ) {
+    var gridInfo by remember { mutableStateOf<CalendarGridInfo?>(null) }
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 8.dp)
     ) {
-        var dayCounter = 1
-        val totalCells = firstDayOfWeek + daysInMonth
-        val rows = (totalCells + 6) / 7
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .onGloballyPositioned { coords ->
+                    val bounds = coords.boundsInWindow()
+                    val cellSz = bounds.width / 7f
+                    val info = CalendarGridInfo(
+                        gridBounds = bounds,
+                        cellSize = cellSz,
+                        firstDayOffset = firstDayOfWeek,
+                        daysInMonth = daysInMonth,
+                        yearMonth = yearMonth
+                    )
+                    if (info != gridInfo) {
+                        gridInfo = info
+                        onGridInfoChanged?.invoke(info)
+                    }
+                }
+        ) {
+            var dayCounter = 1
+            val totalCells = firstDayOfWeek + daysInMonth
+            val rows = (totalCells + 6) / 7
 
-        for (row in 0 until rows) {
-            Row(modifier = Modifier.fillMaxWidth()) {
-                for (col in 0 until 7) {
-                    val cellIndex = row * 7 + col
-                    val isBlank = cellIndex < firstDayOfWeek || dayCounter > daysInMonth
+            Column(modifier = Modifier.fillMaxWidth()) {
+                for (row in 0 until rows) {
+                    Row(modifier = Modifier.fillMaxWidth()) {
+                        for (col in 0 until 7) {
+                            val cellIndex = row * 7 + col
+                            val isBlank = cellIndex < firstDayOfWeek || dayCounter > daysInMonth
 
-                    if (isBlank) {
-                        Box(modifier = Modifier.weight(1f).aspectRatio(1f))
-                    } else {
-                        val date = yearMonth.atDay(dayCounter)
-                        val isSelected = date == selectedDate
-                        val isToday = date == today
-                        val hasAppointment = date in datesWithAppointments
+                            if (isBlank) {
+                                Box(modifier = Modifier.weight(1f).aspectRatio(1f))
+                            } else {
+                                val date = yearMonth.atDay(dayCounter)
+                                val isSelected = date == selectedDate
+                                val isToday = date == today
+                                val hasAppointment = date in datesWithAppointments
 
-                        DayCell(
-                            day = dayCounter,
-                            isSelected = isSelected,
-                            isToday = isToday,
-                            hasAppointment = hasAppointment,
-                            onClick = { onDateSelected(date) },
-                            modifier = Modifier.weight(1f)
-                        )
-                        dayCounter++
+                                DayCell(
+                                    day = dayCounter,
+                                    isSelected = isSelected,
+                                    isToday = isToday,
+                                    hasAppointment = hasAppointment,
+                                    onClick = { onDateSelected(date) },
+                                    modifier = Modifier.weight(1f)
+                                )
+                                dayCounter++
+                            }
+                        }
                     }
                 }
             }
