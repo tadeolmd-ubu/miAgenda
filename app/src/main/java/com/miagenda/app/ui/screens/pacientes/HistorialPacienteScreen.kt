@@ -14,10 +14,15 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -26,8 +31,10 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -37,6 +44,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -55,9 +64,21 @@ fun HistorialPacienteScreen(
     viewModel: HistorialPacienteViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val dialogState by viewModel.dialogState.collectAsState()
 
     LaunchedEffect(pacienteId) {
         viewModel.cargarHistorial(pacienteId)
+    }
+
+    if (dialogState.show) {
+        EditarSesionDialog(
+            dialogState = dialogState,
+            onHoraInicioChange = viewModel::onHoraInicioChange,
+            onHoraFinChange = viewModel::onHoraFinChange,
+            onMotivoChange = viewModel::onMotivoChange,
+            onGuardar = viewModel::guardarSesion,
+            onDismiss = viewModel::cerrarDialogo
+        )
     }
 
     Scaffold(
@@ -184,7 +205,11 @@ fun HistorialPacienteScreen(
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         items(uiState.sesiones, key = { it.id }) { sesion ->
-                            SesionHistorialCard(sesion = sesion)
+                            SesionHistorialCard(
+                                sesion = sesion,
+                                onEdit = { viewModel.abrirEditarSesion(sesion) },
+                                onDelete = { viewModel.eliminarSesion(sesion) }
+                            )
                         }
                     }
                 }
@@ -194,7 +219,11 @@ fun HistorialPacienteScreen(
 }
 
 @Composable
-private fun SesionHistorialCard(sesion: Sesion) {
+private fun SesionHistorialCard(
+    sesion: Sesion,
+    onEdit: () -> Unit,
+    onDelete: () -> Unit
+) {
     val date = LocalDate.ofEpochDay(sesion.fecha)
     val formatter = DateTimeFormatter.ofPattern("EEEE d 'de' MMMM yyyy", Locale("es"))
     val dateText = date.format(formatter).replaceFirstChar { it.uppercase() }
@@ -204,26 +233,60 @@ private fun SesionHistorialCard(sesion: Sesion) {
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {
         Column(modifier = Modifier.padding(12.dp)) {
-            Text(
-                text = dateText,
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.primary,
-                fontWeight = FontWeight.SemiBold
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-            Row {
-                Text(
-                    text = sesion.horaInicio,
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.Bold
-                )
-                if (sesion.horaFin.isNotBlank()) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = " - ${sesion.horaFin}",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        text = dateText,
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Row {
+                        Text(
+                            text = sesion.horaInicio,
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                        if (sesion.horaFin.isNotBlank()) {
+                            Text(
+                                text = " - ${sesion.horaFin}",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+                IconButton(
+                    onClick = onEdit,
+                    modifier = Modifier.size(36.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Edit,
+                        contentDescription = "Editar sesión",
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(20.dp)
                     )
                 }
+                IconButton(
+                    onClick = onDelete,
+                    modifier = Modifier.size(36.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Delete,
+                        contentDescription = "Eliminar sesión",
+                        tint = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
+            if (sesion.notas.isNotBlank()) {
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = sesion.notas,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
             if (sesion.motivo.isNotBlank()) {
                 Spacer(modifier = Modifier.height(2.dp))
@@ -235,4 +298,107 @@ private fun SesionHistorialCard(sesion: Sesion) {
             }
         }
     }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun EditarSesionDialog(
+    dialogState: HistorialDialogState,
+    onHoraInicioChange: (String) -> Unit,
+    onHoraFinChange: (String) -> Unit,
+    onMotivoChange: (String) -> Unit,
+    onGuardar: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    val dateFormatter = DateTimeFormatter.ofPattern("EEEE d 'de' MMMM", Locale("es"))
+    val dateText = dialogState.fecha.format(dateFormatter).replaceFirstChar { it.uppercase() }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Editar sesión") },
+        text = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState())
+            ) {
+                Text(
+                    text = dateText,
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.SemiBold
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                OutlinedTextField(
+                    value = dialogState.horaInicio,
+                    onValueChange = onHoraInicioChange,
+                    label = { Text("Hora inicio") },
+                    placeholder = { Text("HH:mm") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Number,
+                        imeAction = ImeAction.Next
+                    )
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                OutlinedTextField(
+                    value = dialogState.horaFin,
+                    onValueChange = onHoraFinChange,
+                    label = { Text("Hora fin (opcional)") },
+                    placeholder = { Text("HH:mm") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Number,
+                        imeAction = ImeAction.Next
+                    )
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                OutlinedTextField(
+                    value = dialogState.motivo,
+                    onValueChange = onMotivoChange,
+                    label = { Text("Motivo (opcional)") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done)
+                )
+
+                if (dialogState.error != null) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = dialogState.error,
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = onGuardar,
+                enabled = !dialogState.isSaving
+            ) {
+                if (dialogState.isSaving) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(16.dp),
+                        strokeWidth = 2.dp
+                    )
+                } else {
+                    Text("Guardar")
+                }
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancelar")
+            }
+        }
+    )
 }
