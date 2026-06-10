@@ -7,7 +7,7 @@ fun PacienteEntity.toDomain(): Paciente = Paciente(
     id = id,
     nombre = nombre,
     telefono = telefono,
-    email = email,
+    edad = edad,
     notas = notas,
     fechaCreacion = fechaCreacion
 )
@@ -16,7 +16,7 @@ fun Paciente.toEntity(): PacienteEntity = PacienteEntity(
     id = id,
     nombre = nombre,
     telefono = telefono,
-    email = email,
+    edad = edad,
     notas = notas,
     fechaCreacion = fechaCreacion
 )

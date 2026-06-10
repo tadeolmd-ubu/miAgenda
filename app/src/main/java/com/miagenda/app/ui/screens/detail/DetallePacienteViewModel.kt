@@ -14,11 +14,14 @@ import kotlinx.coroutines.launch
 data class DetallePacienteUiState(
     val nombre: String = "",
     val telefono: String = "",
-    val email: String = "",
+    val edad: String = "",
     val notas: String = "",
+    val nombreError: Boolean = false,
     val isSaving: Boolean = false,
+    val isDeleting: Boolean = false,
     val isLoaded: Boolean = false,
-    val pacienteId: Long = -1
+    val pacienteId: Long = -1,
+    val isEditing: Boolean = false
 )
 
 class DetallePacienteViewModel(application: Application) : AndroidViewModel(application) {
@@ -35,24 +38,26 @@ class DetallePacienteViewModel(application: Application) : AndroidViewModel(appl
             _uiState.value = DetallePacienteUiState(
                 nombre = paciente.nombre,
                 telefono = paciente.telefono,
-                email = paciente.email,
+                edad = if (paciente.edad > 0) paciente.edad.toString() else "",
                 notas = paciente.notas,
                 isLoaded = true,
-                pacienteId = paciente.id
+                pacienteId = paciente.id,
+                isEditing = true
             )
         }
     }
 
     fun onNombreChange(valor: String) {
-        _uiState.value = _uiState.value.copy(nombre = valor)
+        _uiState.value = _uiState.value.copy(nombre = valor, nombreError = false)
     }
 
     fun onTelefonoChange(valor: String) {
         _uiState.value = _uiState.value.copy(telefono = valor)
     }
 
-    fun onEmailChange(valor: String) {
-        _uiState.value = _uiState.value.copy(email = valor)
+    fun onEdadChange(valor: String) {
+        val filtered = valor.filter { it.isDigit() }
+        _uiState.value = _uiState.value.copy(edad = filtered)
     }
 
     fun onNotasChange(valor: String) {
@@ -61,7 +66,10 @@ class DetallePacienteViewModel(application: Application) : AndroidViewModel(appl
 
     fun guardarPaciente(onSuccess: () -> Unit) {
         val state = _uiState.value
-        if (state.nombre.isBlank()) return
+        if (state.nombre.isBlank()) {
+            _uiState.value = state.copy(nombreError = true)
+            return
+        }
 
         viewModelScope.launch {
             _uiState.value = state.copy(isSaving = true)
@@ -70,7 +78,7 @@ class DetallePacienteViewModel(application: Application) : AndroidViewModel(appl
                 id = if (state.pacienteId > 0) state.pacienteId else 0,
                 nombre = state.nombre.trim(),
                 telefono = state.telefono.trim(),
-                email = state.email.trim(),
+                edad = state.edad.toIntOrNull() ?: 0,
                 notas = state.notas.trim()
             )
 
@@ -81,6 +89,21 @@ class DetallePacienteViewModel(application: Application) : AndroidViewModel(appl
             }
 
             onSuccess()
+        }
+    }
+
+    fun eliminarPaciente(onDeleted: () -> Unit) {
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isDeleting = true)
+            val entity = PacienteEntity(
+                id = _uiState.value.pacienteId,
+                nombre = _uiState.value.nombre,
+                telefono = _uiState.value.telefono,
+                edad = _uiState.value.edad.toIntOrNull() ?: 0,
+                notas = _uiState.value.notas
+            )
+            repository.eliminarPaciente(entity)
+            onDeleted()
         }
     }
 }

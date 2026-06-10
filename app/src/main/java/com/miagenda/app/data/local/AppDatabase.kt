@@ -11,7 +11,7 @@ import com.miagenda.app.data.local.entity.SesionEntity
 
 @Database(
     entities = [PacienteEntity::class, SesionEntity::class],
-    version = 3,
+    version = 4,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
